@@ -1,6 +1,4 @@
-#include <User_Setup.h>   // Setup file for ESP32 and TTGO T-Display ST7789V SPI bus TFT
-#define USER_SETUP_LOADED // Indicates a specific setup is already loaded
-#include <TFT_eSPI.h>     // Hardware-specific library
+#include <TFT_eSPI.h> // Hardware-specific library
 #include <SPI.h>
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
@@ -23,8 +21,6 @@ void setup(void)
   tft.init(); // initialize a ST7735S chip
 
   Serial.println("Initialized");
-  Serial.println("TFTHeight:");
-  Serial.println(TFT_HEIGHT);
 }
 
 void loop(void)
