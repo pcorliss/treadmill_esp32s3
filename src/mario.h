@@ -74,9 +74,9 @@ const uint16_t epd_bitmap_cape_4[] PROGMEM = {
 // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 1088)
 const int epd_bitmap_cape_LEN = 4;
 const uint16_t *epd_bitmap_cape[4] = {
-    epd_bitmap_cape_1,
+    epd_bitmap_cape_3, // Correct Order is Cape 3 -> 2 -> 1 -> 4
     epd_bitmap_cape_2,
-    epd_bitmap_cape_3,
+    epd_bitmap_cape_1,
     epd_bitmap_cape_4};
 
 // 'mario_2', 16x32px
