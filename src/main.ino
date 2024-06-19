@@ -20,39 +20,31 @@ void setup(void)
   digitalWrite(TFT_I2C_POWER, HIGH);
   delay(10);
 
-  // Use this initializer if you're using a 1.8" TFT
-  tft.init(); // initialize a ST7735S chip
+  tft.init();
   tft.setRotation(1);
   tft.setSwapBytes(true);
 
   background.createSprite(TFT_HEIGHT, TFT_WIDTH);
   background.setSwapBytes(tft.getSwapBytes());
-  background.fillSprite(TFT_DARKGREY);
-
-  // tft.fillScreen(TFT_DARKGREY);
 
   Serial.println("Initialized");
-  mario.setSwapBytes(tft.getSwapBytes());
   mario.createSprite(16, 32);
-  // mario.pushImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[4], 0x0000);
-  // mario.pushImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[4]);
 }
 
 void loop(void)
 {
   for (int x = 0, mario_idx = 0; x < TFT_HEIGHT - 16; x++, mario_idx++)
   {
-    background.fillSprite(TFT_DARKGREY);
-    // mario.pushImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[mario_idx % 3 + 4]);
-    mario.pushImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[mario_idx % 3 + 4]);
-    mario.pushToSprite(&background, x, 0, TFT_BLACK);
+    background.fillSprite(TFT_OLIVE);
+    mario.pushImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[mario_idx % 3]);
+    // The transparency masked is swapped 0x03ae -> 0xae03.
+    // Not quite sure why. Probably swapping the bytes.
+    // & is automatic because of the overflow in C++
+    // (mario << 8 | mario >> 8) & (2**16 -1)
+    mario.pushToSprite(&background, x, 0, 0xae03);
 
     background.pushSprite(0, 0);
 
-    // mario.pushImage(x, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[mario_idx % 3 + 4], 0x0000);
-    // mario.pushMaskedImage(0, 0, 16, 32, (uint16_t *)epd_bitmap_allArray[mario_idx % 3 + 4], (unsigned char *)epd_bitmap_alphaallArray[mario_idx % 3 + 4]);
-    // mario.pushSprite(x, 0, TFT_BLACK);
     delay(100);
   }
-  // delay(1000);
 }
