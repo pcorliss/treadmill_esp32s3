@@ -48,17 +48,19 @@ void setup(void)
   mario.createSprite(16 * scale, 32 * scale);
   cape.createSprite(16 * scale, 16 * scale);
 
-  connectWifi();
+  // connectWifi();
 }
+
+const int mario_x = 35;
+const int mario_y = 30;
 
 void loop(void)
 {
-  postTreadData(1.234);
-  for (int x = 0, mario_idx = 0, cape_idx = 0; x < TFT_HEIGHT - (16 * scale); x += scale, mario_idx++, cape_idx++)
+  for (int x = 0; x < epd_bitmap_mario_LEN * epd_bitmap_cape_LEN; x++)
   {
     background.fillSprite(TFT_OLIVE);
-    mario_idx %= epd_bitmap_mario_LEN;
-    cape_idx %= epd_bitmap_cape_LEN;
+    int mario_idx = x % epd_bitmap_mario_LEN;
+    int cape_idx = x % epd_bitmap_cape_LEN;
     mario.pushImage(0, 0, 16 * scale, 32 * scale, (uint16_t *)epd_bitmap_mario[mario_idx]);
     cape.pushImage(0, 0, 16 * scale, 16 * scale, (uint16_t *)epd_bitmap_cape[cape_idx]);
     // The transparency masked is swapped 0x03ae -> 0xae03.
@@ -66,8 +68,8 @@ void loop(void)
     // & is automatic because of the overflow in C++
     // (mario << 8 | mario >> 8) & (2**16 -1)
     // Cape offset by 10x10
-    cape.pushToSprite(&background, x - (10 * scale), 0 + (10 * scale), 0xae03);
-    mario.pushToSprite(&background, x, 0, 0xae03);
+    cape.pushToSprite(&background, mario_x - (10 * scale), mario_y + (10 * scale), 0xae03);
+    mario.pushToSprite(&background, mario_x, mario_y, 0xae03);
 
     background.pushSprite(0, 0);
 
@@ -151,6 +153,7 @@ void readResponse(WiFiClient *client)
 }
 
 // curl -i -X POST -d'entry.1047162164=1.234' https://docs.google.com/forms/u/0/d/e/1FAIpQLSdclU7-nN2EGPs2t-XDsZuKpluklEsXBPmTDs6GfbGyu3MoBg/formResponse
+// postTreadData(1.234);
 void postTreadData(float distance)
 {
   WiFiClient client;
