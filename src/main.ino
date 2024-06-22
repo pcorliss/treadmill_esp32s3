@@ -1,6 +1,7 @@
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <SPI.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
 #include <mario.h>
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
@@ -11,9 +12,8 @@ const int scale = 3;
 
 const char *ssid = WIFI_SSID;
 const char *password = WIFI_PASSWORD;
-
-const char *host = "www.example.org"; // This should not be changed
-const int httpPort = 80;              // This should not be changed
+const char *postUrl = URL;
+const char *inputId = INPUTID;
 
 void setup(void)
 {
@@ -53,6 +53,7 @@ void setup(void)
 
 void loop(void)
 {
+  postTreadData(1.234);
   for (int x = 0, mario_idx = 0, cape_idx = 0; x < TFT_HEIGHT - (16 * scale); x += scale, mario_idx++, cape_idx++)
   {
     background.fillSprite(TFT_OLIVE);
@@ -72,7 +73,6 @@ void loop(void)
 
     delay(125);
   }
-  httpGet();
 }
 
 uint16_t *scaleSprite(uint16_t *img, int width, int height, int scale)
@@ -150,18 +150,31 @@ void readResponse(WiFiClient *client)
   Serial.printf("\nClosing connection\n\n");
 }
 
-void httpGet()
+// curl -i -X POST -d'entry.1047162164=1.234' https://docs.google.com/forms/u/0/d/e/1FAIpQLSdclU7-nN2EGPs2t-XDsZuKpluklEsXBPmTDs6GfbGyu3MoBg/formResponse
+void postTreadData(float distance)
 {
   WiFiClient client;
-  String footer = String(" HTTP/1.1\r\n") + "Host: " + String(host) + "\r\n" + "Connection: close\r\n\r\n";
+  HTTPClient http;
+  String url = postUrl;
+  String data = String(inputId) + "=" + String(distance);
 
-  // WRITE --------------------------------------------------------------------------------------------
-  if (!client.connect(host, httpPort))
+  http.begin(url);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+  int httpResponseCode = http.POST(data); // Send the actual POST request
+
+  if (httpResponseCode > 0)
   {
-    Serial.println("Failed to connect!");
-    return;
+    // String response = http.getString(); // Get the response to the request
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode); // Print return code
+    // Serial.println(response);           // Print request answer
   }
+  else
+  {
+    Serial.print("Error on sending POST: ");
+    Serial.println(httpResponseCode);
 
-  client.print("GET /" + footer);
-  readResponse(&client);
+    http.end();
+  }
 }
