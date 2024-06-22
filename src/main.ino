@@ -34,6 +34,7 @@ void setup(void)
     Serial.println("Scaling Sprite Array");
     scaleSpriteArray(epd_bitmap_mario, epd_bitmap_mario_LEN, 16, 32, scale);
     scaleSpriteArray(epd_bitmap_cape, epd_bitmap_cape_LEN, 16, 16, scale);
+    scaleSpriteArray(epd_bitmap_bkg, epd_bitmap_bkg_LEN, TFT_HEIGHT / 3, TFT_WIDTH / 3, scale);
     Serial.println("Done Scaling Sprite Array");
   }
 
@@ -53,14 +54,28 @@ void setup(void)
 
 const int mario_x = 35;
 const int mario_y = 30;
+// Mario is 32px tall * 3 scale == 96px
+// Screen is 135px tall
+// Mario feet to bottom of screen is 135 - 96 - 30 == 9px
+
+// 240 / 3 == 80
+// 135 / 3 == 45
+
+// Mario is 32px tall
+// 1 px gap in sprite
+// x3 scale
+// 135 - (31 * 3 + 30) == 12px gap at bottom
+// 12px / 3 == 4px
 
 void loop(void)
 {
   for (int x = 0; x < epd_bitmap_mario_LEN * epd_bitmap_cape_LEN; x++)
   {
-    background.fillSprite(TFT_OLIVE);
     int mario_idx = x % epd_bitmap_mario_LEN;
     int cape_idx = x % epd_bitmap_cape_LEN;
+
+    // background.fillSprite(TFT_OLIVE);
+    background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, (uint16_t *)epd_bitmap_bkg[0]);
     mario.pushImage(0, 0, 16 * scale, 32 * scale, (uint16_t *)epd_bitmap_mario[mario_idx]);
     cape.pushImage(0, 0, 16 * scale, 16 * scale, (uint16_t *)epd_bitmap_cape[cape_idx]);
     // The transparency masked is swapped 0x03ae -> 0xae03.
