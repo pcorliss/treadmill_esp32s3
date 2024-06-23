@@ -15,6 +15,8 @@ const char *password = WIFI_PASSWORD;
 const char *postUrl = URL;
 const char *inputId = INPUTID;
 
+uint16_t *backgroundBuffer;
+
 void setup(void)
 {
   Serial.begin(9600);
@@ -34,7 +36,9 @@ void setup(void)
     Serial.println("Scaling Sprite Array");
     scaleSpriteArray(epd_bitmap_mario, epd_bitmap_mario_LEN, 16, 32, scale);
     scaleSpriteArray(epd_bitmap_cape, epd_bitmap_cape_LEN, 16, 16, scale);
-    scaleSpriteArray(epd_bitmap_bkg, epd_bitmap_bkg_LEN, TFT_HEIGHT / 3, TFT_WIDTH / 3, scale);
+    // 512x45px Background Image
+    // Too Large to allocate all to memory
+    backgroundBuffer = (uint16_t *)malloc(TFT_HEIGHT * TFT_WIDTH * sizeof(uint16_t));
     Serial.println("Done Scaling Sprite Array");
   }
 
@@ -54,30 +58,22 @@ void setup(void)
 
 const int mario_x = 35;
 const int mario_y = 30;
-// Mario is 32px tall * 3 scale == 96px
-// Screen is 135px tall
-// Mario feet to bottom of screen is 135 - 96 - 30 == 9px
-
-// 240 / 3 == 80
-// 135 / 3 == 45
-
-// Mario is 32px tall
-// 1 px gap in sprite
-// x3 scale
-// 135 - (31 * 3 + 30) == 12px gap at bottom
-// 12px / 3 == 4px
 
 void loop(void)
 {
-  for (int x = 0; x < epd_bitmap_mario_LEN * epd_bitmap_cape_LEN; x++)
+  for (int x = 0; x < 512; x++)
   {
-    int mario_idx = x % epd_bitmap_mario_LEN;
-    int cape_idx = x % epd_bitmap_cape_LEN;
+    int mario_idx = (x / 2) % epd_bitmap_mario_LEN;
+    int cape_idx = (x / 2) % epd_bitmap_cape_LEN;
 
     // background.fillSprite(TFT_OLIVE);
-    background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, (uint16_t *)epd_bitmap_bkg[0]);
-    mario.pushImage(0, 0, 16 * scale, 32 * scale, (uint16_t *)epd_bitmap_mario[mario_idx]);
-    cape.pushImage(0, 0, 16 * scale, 16 * scale, (uint16_t *)epd_bitmap_cape[cape_idx]);
+    // background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, (uint16_t *)epd_bitmap_bkg[0]);
+
+    scaleChunkSprite(epd_bitmap_bkg[0], backgroundBuffer, 512, 45, TFT_HEIGHT, x, scale);
+    background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, backgroundBuffer);
+
+    mario.pushImage(0, 0, 16 * scale, 32 * scale, epd_bitmap_mario[mario_idx]);
+    cape.pushImage(0, 0, 16 * scale, 16 * scale, epd_bitmap_cape[cape_idx]);
     // The transparency masked is swapped 0x03ae -> 0xae03.
     // Not quite sure why. Probably swapping the bytes.
     // & is automatic because of the overflow in C++
@@ -88,7 +84,7 @@ void loop(void)
 
     background.pushSprite(0, 0);
 
-    delay(125);
+    delay(60);
   }
 }
 
@@ -113,6 +109,26 @@ uint16_t *scaleSprite(uint16_t *img, int width, int height, int scale)
   }
 
   return new_img;
+}
+
+void scaleChunkSprite(uint16_t *img, uint16_t *buffer, int imgWidth, int imgHeight, int chunkWidth, int offset, int scale)
+{
+  for (int i = 0; i < (chunkWidth / scale); i++)
+  {
+    for (int j = 0; j < imgHeight; j++)
+    {
+      for (int k = 0; k < scale; k++)
+      {
+        for (int l = 0; l < scale; l++)
+        {
+          int x = (i + offset) % imgWidth; // Needs to range from 0-imgWidth
+          int idx_x = i * scale + k;
+          int idx_y = j * scale + l;
+          buffer[idx_x + idx_y * chunkWidth] = img[x + j * imgWidth];
+        }
+      }
+    }
+  }
 }
 
 void scaleSpriteArray(uint16_t **array, int length, int width, int height, int scale)
