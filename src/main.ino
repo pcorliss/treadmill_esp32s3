@@ -17,6 +17,15 @@ const char *postUrl = URL;
 const char *inputId = INPUTID;
 
 uint16_t *backgroundBuffer;
+uint16_t *textOverlayBuffer;
+
+const int textOverlayWidth = 130;
+const int textOverlayHeight = 105;
+const int textOverlayX = 100;
+const int textOverlayY = 15;
+
+const int mario_x = 35;
+const int mario_y = 30;
 
 void setup(void)
 {
@@ -53,13 +62,11 @@ void setup(void)
   Serial.println("Initialized");
   mario.createSprite(16 * scale, 32 * scale);
   cape.createSprite(16 * scale, 16 * scale);
-  textOverlay.createSprite(130, 105);
+  textOverlay.createSprite(textOverlayWidth, textOverlayHeight);
+  textOverlayBuffer = (uint16_t *)malloc(textOverlayWidth * textOverlayHeight * sizeof(uint16_t));
 
   // connectWifi();
 }
-
-const int mario_x = 35;
-const int mario_y = 30;
 
 void loop(void)
 {
@@ -75,8 +82,11 @@ void loop(void)
     background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, backgroundBuffer);
 
     textOverlay.setTextSize(1);
-    textOverlay.fillSprite(TFT_DARKGREY);
-    textOverlay.setTextColor(TFT_GREEN);
+    textOverlay.setSwapBytes(true);
+    alphaBlendTextOverlay();
+    textOverlay.pushImage(0, 0, textOverlayWidth, textOverlayHeight, textOverlayBuffer);
+    // textOverlay.fillSprite(TFT_DARKGREY);
+    textOverlay.setTextColor(TFT_WHITE);
     // textOverlay.setTextColor(TFT_BLACK, TFT_WHITE);
 
     textOverlay.drawString(" !\"#$%&'()*+,-./0123456", 0, 0, 2);
@@ -93,7 +103,7 @@ void loop(void)
     // Cape offset by 10x10
     cape.pushToSprite(&background, mario_x - (10 * scale), mario_y + (10 * scale), 0xae03);
     mario.pushToSprite(&background, mario_x, mario_y, 0xae03);
-    textOverlay.pushToSprite(&background, 100, 15);
+    textOverlay.pushToSprite(&background, textOverlayX, textOverlayY);
 
     background.pushSprite(0, 0);
 
@@ -122,6 +132,22 @@ uint16_t *scaleSprite(uint16_t *img, int width, int height, int scale)
   }
 
   return new_img;
+}
+
+void alphaBlendTextOverlay()
+{
+  for (int i = 0; i < textOverlayWidth; i++)
+  {
+    for (int j = 0; j < textOverlayHeight; j++)
+    {
+      int x = i + textOverlayX;
+      int y = j + textOverlayY;
+
+      int idx = i + j * textOverlayWidth;
+      int background_idx = x + y * TFT_HEIGHT;
+      textOverlayBuffer[idx] = tft.alphaBlend(0x80, backgroundBuffer[background_idx], TFT_BLACK);
+    }
+  }
 }
 
 void scaleChunkSprite(uint16_t *img, uint16_t *buffer, int imgWidth, int imgHeight, int chunkWidth, int offset, int scale)
