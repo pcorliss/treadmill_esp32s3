@@ -8,6 +8,7 @@ TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 TFT_eSprite mario = TFT_eSprite(&tft);
 TFT_eSprite cape = TFT_eSprite(&tft);
 TFT_eSprite background = TFT_eSprite(&tft);
+TFT_eSprite textOverlay = TFT_eSprite(&tft);
 const int scale = 3;
 
 const char *ssid = WIFI_SSID;
@@ -52,6 +53,7 @@ void setup(void)
   Serial.println("Initialized");
   mario.createSprite(16 * scale, 32 * scale);
   cape.createSprite(16 * scale, 16 * scale);
+  textOverlay.createSprite(130, 105);
 
   // connectWifi();
 }
@@ -72,6 +74,16 @@ void loop(void)
     scaleChunkSprite(epd_bitmap_bkg[0], backgroundBuffer, 512, 45, TFT_HEIGHT, x, scale);
     background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, backgroundBuffer);
 
+    textOverlay.setTextSize(1);
+    textOverlay.fillSprite(TFT_DARKGREY);
+    textOverlay.setTextColor(TFT_GREEN);
+    // textOverlay.setTextColor(TFT_BLACK, TFT_WHITE);
+
+    textOverlay.drawString(" !\"#$%&'()*+,-./0123456", 0, 0, 2);
+    textOverlay.drawString("789:;<=>?@ABCDEFGHIJKL", 0, 16, 2);
+    textOverlay.drawString("MNOPQRSTUVWXYZ[\\]^_`", 0, 32, 2);
+    textOverlay.drawString("abcdefghijklmnopqrstuvw", 0, 48, 2);
+
     mario.pushImage(0, 0, 16 * scale, 32 * scale, epd_bitmap_mario[mario_idx]);
     cape.pushImage(0, 0, 16 * scale, 16 * scale, epd_bitmap_cape[cape_idx]);
     // The transparency masked is swapped 0x03ae -> 0xae03.
@@ -81,6 +93,7 @@ void loop(void)
     // Cape offset by 10x10
     cape.pushToSprite(&background, mario_x - (10 * scale), mario_y + (10 * scale), 0xae03);
     mario.pushToSprite(&background, mario_x, mario_y, 0xae03);
+    textOverlay.pushToSprite(&background, 100, 15);
 
     background.pushSprite(0, 0);
 
