@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <Free_Fonts.h>
 #include <mario.h>
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
@@ -19,10 +20,13 @@ const char *inputId = INPUTID;
 uint16_t *backgroundBuffer;
 uint16_t *textOverlayBuffer;
 
-const int textOverlayWidth = 130;
-const int textOverlayHeight = 105;
-const int textOverlayX = 100;
-const int textOverlayY = 15;
+// TFT_HEIGHT = 240
+// TFT_WIDTH = 135
+
+const int textOverlayWidth = 120;
+const int textOverlayHeight = 85;
+const int textOverlayX = 110;
+const int textOverlayY = 25;
 
 const int mario_x = 35;
 const int mario_y = 30;
@@ -81,18 +85,18 @@ void loop(void)
     scaleChunkSprite(epd_bitmap_bkg[0], backgroundBuffer, 512, 45, TFT_HEIGHT, x, scale);
     background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, backgroundBuffer);
 
-    textOverlay.setTextSize(1);
     textOverlay.setSwapBytes(true);
     alphaBlendTextOverlay();
     textOverlay.pushImage(0, 0, textOverlayWidth, textOverlayHeight, textOverlayBuffer);
-    // textOverlay.fillSprite(TFT_DARKGREY);
-    textOverlay.setTextColor(TFT_WHITE);
-    // textOverlay.setTextColor(TFT_BLACK, TFT_WHITE);
 
-    textOverlay.drawString(" !\"#$%&'()*+,-./0123456", 0, 0, 2);
-    textOverlay.drawString("789:;<=>?@ABCDEFGHIJKL", 0, 16, 2);
-    textOverlay.drawString("MNOPQRSTUVWXYZ[\\]^_`", 0, 32, 2);
-    textOverlay.drawString("abcdefghijklmnopqrstuvw", 0, 48, 2);
+    // textOverlay.setTextSize(1);
+    textOverlay.setTextColor(TFT_WHITE);
+    textOverlay.setCursor(0, 32);
+    textOverlay.setTextWrap(true);
+    textOverlay.setFreeFont(FF23);
+    // textOverlay.println("Hello World ...");
+    textOverlay.println(" 7h56m");
+    textOverlay.println(" 8.76mi");
 
     mario.pushImage(0, 0, 16 * scale, 32 * scale, epd_bitmap_mario[mario_idx]);
     cape.pushImage(0, 0, 16 * scale, 16 * scale, epd_bitmap_cape[cape_idx]);
@@ -222,7 +226,6 @@ void readResponse(WiFiClient *client)
   Serial.printf("\nClosing connection\n\n");
 }
 
-// curl -i -X POST -d'entry.1047162164=1.234' https://docs.google.com/forms/u/0/d/e/1FAIpQLSdclU7-nN2EGPs2t-XDsZuKpluklEsXBPmTDs6GfbGyu3MoBg/formResponse
 // postTreadData(1.234);
 void postTreadData(float distance)
 {
