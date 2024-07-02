@@ -31,10 +31,24 @@ const int textOverlayY = 25;
 const int mario_x = 35;
 const int mario_y = 30;
 
+void display_freeram()
+{
+  Serial.print(F("- SRAM: "));
+  Serial.println(ESP.getHeapSize());
+  Serial.print(F("- SRAM left: "));
+  Serial.println(ESP.getFreeHeap());
+  Serial.print(F("- PSRAM: "));
+  Serial.println(ESP.getPsramSize());
+  Serial.print(F("- PSRAM left: "));
+  Serial.println(ESP.getFreePsram());
+}
+
 void setup(void)
 {
   Serial.begin(9600);
-  Serial.print("Hello! ST7735 TFT Test");
+  delay(2000); // Let serial console settle
+  Serial.println(F("Hello World"));
+  display_freeram();
 
   // turn on backlite
   pinMode(TFT_BACKLITE, OUTPUT);
@@ -47,33 +61,45 @@ void setup(void)
 
   if (scale > 1)
   {
-    Serial.println("Scaling Sprite Array");
+    Serial.println(F("Scaling Sprite Array"));
     scaleSpriteArray(epd_bitmap_mario, epd_bitmap_mario_LEN, 16, 32, scale);
+    Serial.println(F("Mario Scaled"));
+    display_freeram();
     scaleSpriteArray(epd_bitmap_cape, epd_bitmap_cape_LEN, 16, 16, scale);
+    Serial.println(F("Cape Scaled"));
+    display_freeram();
     // 512x45px Background Image
     // Too Large to allocate all to memory
     backgroundBuffer = (uint16_t *)malloc(TFT_HEIGHT * TFT_WIDTH * sizeof(uint16_t));
-    Serial.println("Done Scaling Sprite Array");
+    Serial.println(F("Done Scaling Sprite Array"));
+    display_freeram();
   }
 
   tft.init();
   tft.setRotation(1);
   tft.setSwapBytes(true);
+  Serial.println(F("TFT Initialized"));
+  display_freeram();
 
   background.createSprite(TFT_HEIGHT, TFT_WIDTH);
   background.setSwapBytes(tft.getSwapBytes());
+  Serial.println(F("Background Initialized"));
+  display_freeram();
 
-  Serial.println("Initialized");
   mario.createSprite(16 * scale, 32 * scale);
   cape.createSprite(16 * scale, 16 * scale);
   textOverlay.createSprite(textOverlayWidth, textOverlayHeight);
   textOverlayBuffer = (uint16_t *)malloc(textOverlayWidth * textOverlayHeight * sizeof(uint16_t));
 
+  Serial.println(F("Sprites Initialized"));
+  display_freeram();
   // connectWifi();
 }
 
 void loop(void)
 {
+  Serial.println(F("Outer Loop"));
+  display_freeram();
   for (int x = 0; x < 512; x++)
   {
     int mario_idx = (x / 2) % epd_bitmap_mario_LEN;
@@ -84,10 +110,14 @@ void loop(void)
 
     scaleChunkSprite(epd_bitmap_bkg[0], backgroundBuffer, 512, 45, TFT_HEIGHT, x, scale);
     background.pushImage(0, 0, TFT_HEIGHT, TFT_WIDTH, backgroundBuffer);
+    // Serial.println(F("BKG Pushed"));
+    // display_freeram();
 
     textOverlay.setSwapBytes(true);
     alphaBlendTextOverlay();
     textOverlay.pushImage(0, 0, textOverlayWidth, textOverlayHeight, textOverlayBuffer);
+    // Serial.println(F("TXT Overlay Pushed"));
+    // display_freeram();
 
     // textOverlay.setTextSize(1);
     textOverlay.setTextColor(TFT_WHITE);
@@ -97,6 +127,8 @@ void loop(void)
     // textOverlay.println("Hello World ...");
     textOverlay.println(" 7h56m");
     textOverlay.println(" 8.76mi");
+    // Serial.println(F("TXT Rendered"));
+    // display_freeram();
 
     mario.pushImage(0, 0, 16 * scale, 32 * scale, epd_bitmap_mario[mario_idx]);
     cape.pushImage(0, 0, 16 * scale, 16 * scale, epd_bitmap_cape[cape_idx]);
@@ -108,8 +140,12 @@ void loop(void)
     cape.pushToSprite(&background, mario_x - (10 * scale), mario_y + (10 * scale), 0xae03);
     mario.pushToSprite(&background, mario_x, mario_y, 0xae03);
     textOverlay.pushToSprite(&background, textOverlayX, textOverlayY);
+    // Serial.println(F("Mario Rendered "));
+    // display_freeram();
 
     background.pushSprite(0, 0);
+    // Serial.println(F("BKG Pushed"));
+    // display_freeram();
 
     delay(60);
   }
