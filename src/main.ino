@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <NimBLEDevice.h>
 #include <Free_Fonts.h>
 #include <mario.h>
 
@@ -30,6 +31,40 @@ const int textOverlayY = 25;
 
 const int mario_x = 35;
 const int mario_y = 30;
+
+const uint8_t *INIT_SEQUENCE[4] = {
+    (const uint8_t *)"\x02\x00\x00\x00\x00",
+    (const uint8_t *)"\xC2\x00\x00\x00\x00",
+    (const uint8_t *)"\xE9\xFF\x00\x00\x00",
+    (const uint8_t *)"\xE4\x00\xF4\x00\x00"};
+const int INIT_SEQUENCE_LEN = 4;
+
+const uint8_t *startCmd = (const uint8_t *)"\xE1\x00\x00\x00\x00";
+const uint8_t *stopCmd = (const uint8_t *)"\xE0\x00\x00\x00\x00";
+const uint8_t *speedCmd = (const uint8_t *)"\xD0\x00\x00\x00\x00";
+
+const uint8_t *distanceQuery = (const uint8_t *)"\xA1\x85\x00\x00\x00";
+const uint8_t *timeQuery = (const uint8_t *)"\xA1\x89\x00\x00\x00";
+const uint8_t *speedQuery = (const uint8_t *)"\xA1\x82\x00\x00\x00";
+
+const uint8_t *queries[3] = {speedQuery, distanceQuery, timeQuery};
+
+#include "NimBLEDevice.h"
+
+NimBLEClient *pClient;
+NimBLERemoteService *pSvc;
+NimBLERemoteCharacteristic *pChr;
+const NimBLEAddress treadmillAddress("00:0c:bf:3e:df:f9");
+const NimBLEUUID subServiceUUID("fff0");
+const NimBLEUUID characteristicUuid("0000fff1-0000-1000-8000-00805f9b34fb");
+
+#define SPEED 1
+#define DISTANCE 2
+#define TIME 3
+int lastCommand = 0;
+uint8_t duration[3] = {0, 0, 0};
+float distance = 0.0;
+float speed = 0.0;
 
 void display_freeram()
 {
@@ -93,13 +128,28 @@ void setup(void)
 
   Serial.println(F("Sprites Initialized"));
   display_freeram();
-  // connectWifi();
+
+  NimBLEDevice::init("");
+  Serial.println("Initialized NimBLE");
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  Serial.println("Set power level");
+  display_freeram();
+
+  connectWifi();
+  display_freeram();
 }
 
 void loop(void)
 {
   Serial.println(F("Outer Loop"));
   display_freeram();
+
+  if (!(pClient && pSvc && pChr && pClient->isConnected()))
+  {
+    // Need to figure out how to make this async
+    connectToTreadmill();
+  }
+
   for (int x = 0; x < 512; x++)
   {
     int mario_idx = (x / 2) % epd_bitmap_mario_LEN;
@@ -125,8 +175,8 @@ void loop(void)
     textOverlay.setTextWrap(true);
     textOverlay.setFreeFont(FF23);
     // textOverlay.println("Hello World ...");
-    textOverlay.println(" 7h56m");
-    textOverlay.println(" 8.76mi");
+    textOverlay.printf("%dh%02dm", duration[0], duration[1]);
+    textOverlay.printf("%0.2fmi", distance);
     // Serial.println(F("TXT Rendered"));
     // display_freeram();
 
@@ -147,8 +197,124 @@ void loop(void)
     // Serial.println(F("BKG Pushed"));
     // display_freeram();
 
+    if (pClient && pSvc && pChr && pClient->isConnected())
+    {
+      Serial.println("Querying Treadmill");
+      int cmd = x % 3;
+      pChr->writeValue(queries[cmd], 5, false);
+      lastCommand = cmd + 1;
+    }
+
     delay(60);
   }
+}
+
+void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+  if (lastCommand == SPEED)
+  {
+    speed = decodeSpeed(pData);
+    Serial.print("Speed: ");
+    Serial.println(speed);
+  }
+  else if (lastCommand == DISTANCE)
+  {
+    distance = decodeDistance(pData);
+    Serial.print("Distance: ");
+    Serial.println(distance);
+  }
+  else if (lastCommand == TIME)
+  {
+    decodeTime(pData, duration);
+    Serial.print("Time: ");
+    Serial.print(duration[0]);
+    Serial.print(":");
+    Serial.print(duration[1]);
+    Serial.print(":");
+    Serial.println(duration[2]);
+  }
+  lastCommand = 0;
+}
+
+float decodeSpeed(uint8_t *data)
+{
+  // Assuming data[2] and data[3] are bytes representing the speed
+  return data[2] + (data[3] / 100.0);
+}
+
+float decodeDistance(uint8_t *data)
+{
+  // Assuming data[2] and data[3] are bytes representing the distance
+  return data[2] + (data[3] / 100.0);
+}
+
+void decodeTime(uint8_t *data, uint8_t *outputTime)
+{
+  // Assuming data[2], data[3], and data[4] are bytes representing hours, minutes, and seconds
+  // Output is written to outputTime array passed as argument
+  outputTime[0] = data[2]; // Hours
+  outputTime[1] = data[3]; // Minutes
+  outputTime[2] = data[4]; // Seconds
+}
+
+void connectToTreadmill()
+{
+  Serial.println("Attempting to connect");
+
+  if (pClient)
+  {
+    Serial.println("Deleting existing client");
+    pClient->end();
+    NimBLEDevice::deleteClient(pClient);
+    pClient = nullptr;
+  }
+
+  Serial.println("Creating new client");
+  pClient = NimBLEDevice::createClient(treadmillAddress);
+
+  if (!pClient->connect())
+  {
+    Serial.println("Failed to connect to device");
+    return;
+  }
+
+  Serial.println("Connected to device");
+  pSvc = pClient->getService(subServiceUUID);
+  if (!pSvc)
+  {
+    Serial.println("Failed to find service");
+    return;
+  }
+
+  pChr = pSvc->getCharacteristic(characteristicUuid.toString());
+  if (!pChr)
+  {
+    Serial.println("Failed to find characteristic");
+    return;
+  }
+
+  Serial.println("Found characteristic");
+  Serial.println("Sending Init Sequence");
+
+  for (int i = 0; i < INIT_SEQUENCE_LEN; i++)
+  {
+    pChr->writeValue(INIT_SEQUENCE[i], 5, false);
+  }
+  Serial.println("Init Sequence Sent");
+
+  if (!pChr->canNotify())
+  {
+    Serial.println("Characteristic doesn't support notifications");
+    return;
+  }
+
+  if (!pChr->subscribe(false, notifyCB))
+  {
+    Serial.print("subscribe failed");
+    return;
+  }
+
+  Serial.println("Connected and subscribed");
 }
 
 uint16_t *scaleSprite(uint16_t *img, int width, int height, int scale)
