@@ -130,7 +130,7 @@ void setup(void)
   display_freeram();
 
   NimBLEDevice::init("");
-  Serial.println("Initialized NimBLE");
+  Serial.println(F("Initialized NimBLE"));
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   Serial.println("Set power level");
   display_freeram();
@@ -197,7 +197,7 @@ void loop(void)
     // Serial.println(F("BKG Pushed"));
     // display_freeram();
 
-    if (pClient && pSvc && pChr && pClient->isConnected())
+    if (lastCommand == 0 && pSvc && pChr && pClient->isConnected())
     {
       Serial.println("Querying Treadmill");
       int cmd = x % 3;
