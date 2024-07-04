@@ -271,6 +271,7 @@ void connectToTreadmill()
 
   Serial.println("Creating new client");
   pClient = NimBLEDevice::createClient(treadmillAddress);
+  pClient->setConnectTimeout(1);
 
   if (!pClient->connect())
   {
