@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <SPI.h>
 #include <WiFi.h>
@@ -48,8 +49,6 @@ const uint8_t *timeQuery = (const uint8_t *)"\xA1\x89\x00\x00\x00";
 const uint8_t *speedQuery = (const uint8_t *)"\xA1\x82\x00\x00\x00";
 
 const uint8_t *queries[3] = {speedQuery, distanceQuery, timeQuery};
-
-#include "NimBLEDevice.h"
 
 NimBLEClient *pClient;
 NimBLERemoteService *pSvc;
@@ -137,18 +136,15 @@ void setup(void)
 
   connectWifi();
   display_freeram();
+
+  maintainTreadmillConnection();
+  display_freeram();
 }
 
 void loop(void)
 {
   Serial.println(F("Outer Loop"));
   display_freeram();
-
-  if (!(pClient && pSvc && pChr && pClient->isConnected()))
-  {
-    // Need to figure out how to make this async
-    connectToTreadmill();
-  }
 
   for (int x = 0; x < 512; x++)
   {
@@ -196,14 +192,6 @@ void loop(void)
     background.pushSprite(0, 0);
     // Serial.println(F("BKG Pushed"));
     // display_freeram();
-
-    if (lastCommand == 0 && pSvc && pChr && pClient->isConnected())
-    {
-      Serial.println("Querying Treadmill");
-      int cmd = x % 3;
-      pChr->writeValue(queries[cmd], 5, false);
-      lastCommand = cmd + 1;
-    }
 
     delay(60);
   }
@@ -257,9 +245,54 @@ void decodeTime(uint8_t *data, uint8_t *outputTime)
   outputTime[2] = data[4]; // Seconds
 }
 
-void connectToTreadmill()
+void maintainTreadmillConnection()
 {
-  Serial.println("Attempting to connect");
+  Serial.println("Enqueue Connect Task");
+  TaskHandle_t xHandle = NULL;
+  BaseType_t taskCreateReturn = xTaskCreate(connectToTreadmillAsyncWrapper, "connectToTreadmill", 2048, nullptr, tskIDLE_PRIORITY, &xHandle);
+  if (taskCreateReturn == pdPASS)
+  {
+    Serial.println("Task Created");
+  }
+  else
+  {
+    Serial.println("Task Creation Failed");
+  }
+}
+
+void connectToTreadmillAsyncWrapper(void *pvParameters)
+{
+  int x = 0;
+  while (true)
+  {
+    if (pClient && pClient->isConnected())
+    {
+      Serial.println("Already connected");
+      if (lastCommand == 0)
+      {
+        Serial.println("Querying Treadmill");
+        x %= 3;
+        pChr->writeValue(queries[x], 5, false);
+        lastCommand = x + 1;
+        x++;
+      }
+      else
+      {
+        Serial.println(F("Waiting on lastCommand to be zero"));
+      }
+      vTaskDelay(1 * 1024 - 1);
+    }
+    else
+    {
+      connectToTreadmillSync();
+      vTaskDelay(1024 - 1);
+    }
+  }
+}
+
+void connectToTreadmillSync()
+{
+  Serial.println(F("Attempting to connect via BLE"));
 
   if (pClient)
   {
@@ -271,7 +304,7 @@ void connectToTreadmill()
 
   Serial.println("Creating new client");
   pClient = NimBLEDevice::createClient(treadmillAddress);
-  pClient->setConnectTimeout(1);
+  pClient->setConnectTimeout(10);
 
   if (!pClient->connect())
   {
