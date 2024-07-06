@@ -263,6 +263,7 @@ void maintainTreadmillConnection()
 void connectToTreadmillAsyncWrapper(void *pvParameters)
 {
   int x = 0;
+  int lastCommandMissingCounter = 0;
   while (true)
   {
     if (pClient && pClient->isConnected())
@@ -275,10 +276,18 @@ void connectToTreadmillAsyncWrapper(void *pvParameters)
         pChr->writeValue(queries[x], 5, false);
         lastCommand = x + 1;
         x++;
+        lastCommandMissingCounter = 0;
       }
       else
       {
         Serial.println(F("Waiting on lastCommand to be zero"));
+        lastCommandMissingCounter++;
+        if (lastCommandMissingCounter > 3)
+        {
+          Serial.println(F("Resetting lastCommand"));
+          lastCommand = 0;
+          lastCommandMissingCounter = 0;
+        }
       }
       vTaskDelay(1 * 1024 - 1);
     }
